@@ -1,0 +1,106 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  email     String   @unique
+  password  String
+  phone     String?  @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  userGroups    UserGroup[]     // Many-to-Many with groups
+  paidExpenses  Expense[]       // Expenses paid by this user
+  expenseSplits ExpenseSplit[]  // Splits where this user is involved
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userGroups   UserGroup[]  // Many-to-Many with users
+  expenses     Expense[]    // All expenses in this group
+}
+
+model UserGroup {
+  id        String   @id @default(uuid())
+  userId    String
+  groupId   String
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+  group     Group    @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+}
+
+model Expense {
+  id          String      @id @default(uuid())
+  amount      Decimal     // Total amount of expense
+  description String
+  createdAt   DateTime    @default(now())
+  
+  // Who paid this expense
+  paidById    String
+  paidBy      User        @relation(fields: [paidById], references: [id])
+  
+  // Which group this expense belongs to (if any)
+  groupId     String?     // Optional: expense can be non-group
+  group       Group?      @relation(fields: [groupId], references: [id])
+
+  // Split details
+  splitType   SplitType   // How the amount is split
+  splits      ExpenseSplit[] // Individual split entries
+}
+
+enum SplitType {
+  EQUAL           // Split equally among participants
+  EXACT           // Each person pays exact amount
+  PERCENTAGE      // Each person pays percentage of total
+  SHARES          // Based on shares (like 1:2:3)
+}
+
+model ExpenseSplit {
+  id          String   @id @default(uuid())
+  expenseId   String
+  userId      String
+  
+  // Split amount details (only one of these will be used based on splitType)
+  amount      Decimal?    // For EXACT split
+  percentage  Decimal?    // For PERCENTAGE split
+  shares      Int?        // For SHARES split
+                         // For EQUAL split, we don't need any of these
+  
+  // If this split has been settled
+  isSettled   Boolean  @default(false)
+  settledAt   DateTime?
+
+  // Relations
+  expense     Expense  @relation(fields: [expenseId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])  // One split entry per user per expense
+}
+
+// To track settlements between users
+model Settlement {
+  id          String   @id @default(uuid())
+  fromUserId  String
+  toUserId    String
+  amount      Decimal
+  settledAt   DateTime @default(now())
+  notes       String?
+
+  @@index([fromUserId, toUserId])
+}
