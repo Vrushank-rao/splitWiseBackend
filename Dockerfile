@@ -25,7 +25,7 @@ RUN npx prisma generate
 COPY . .
 
 # Expose port
-EXPOSE 3000
+EXPOSE ${PORT}
 
 # Command to run migrations and start the app
 CMD npx prisma migrate deploy && \
