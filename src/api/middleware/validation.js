@@ -1,6 +1,7 @@
 // src/middleware/validation.js
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
+import { getUUIDsFromEmails } from '../../utils/userUtils.js';
 
 const prisma = new PrismaClient();
 
@@ -32,7 +33,7 @@ class ValidationSchemas {
             .max(500, 'Description must be less than 500 characters')
             .trim()
             .optional(),
-        members: z.array(z.string().uuid()).optional()
+        members: z.array(z.string()).optional()
     });
 
     static expenseSchema = z.object({
@@ -208,6 +209,68 @@ class ValidationMiddleware {
     async validateGroupCreation(req, res, next) {
         try {
             const validatedData = ValidationSchemas.groupSchema.parse(req.body);
+            
+            // Check if members array contains emails instead of UUIDs
+            if (validatedData.members && Array.isArray(validatedData.members)) {
+                // Try to determine if the array contains emails
+                const hasEmails = validatedData.members.some(member => 
+                    typeof member === 'string' && member.includes('@')
+                );
+                console.log('Going to check for mail');
+                
+                if (hasEmails) {
+                    console.log('Converting member emails to UUIDs');
+                    // Convert emails to UUIDs
+                    const { foundUsers, notFoundEmails } = await getUUIDsFromEmails(validatedData.members);
+                    
+                    // Replace emails with UUIDs
+                    validatedData.members = foundUsers.map(user => user.id);
+                    
+                    // Store not found emails for the controller to use
+                    validatedData.notFoundEmails = notFoundEmails;
+                }
+            }
+            
+            req.validatedData = validatedData;
+            next();
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: error.errors.map(e => e.message)
+                });
+            }
+            next(error);
+        }
+    }
+
+    async validateAddMember(req, res, next) {
+        try {
+            // Define the schema for adding a member - accepts either an email or a userId
+            const addMemberSchema = z.object({
+                email: z.string().email('Invalid email format').optional(),
+                userId: z.string().uuid('Invalid user ID format').optional()
+            }).refine(data => data.email || data.userId, {
+                message: 'Either email or userId must be provided'
+            });
+            
+            const validatedData = addMemberSchema.parse(req.body);
+            
+            // If email is provided instead of userId, convert it
+            if (validatedData.email && !validatedData.userId) {
+                const { foundUsers, notFoundEmails } = await getUUIDsFromEmails([validatedData.email]);
+                
+                if (notFoundEmails.length > 0) {
+                    return res.status(404).json({
+                        error: 'User not found',
+                        message: `No user found with email: ${validatedData.email}`
+                    });
+                }
+                
+                // Add the userId to the validated data
+                validatedData.userId = foundUsers[0].id;
+            }
+            
             req.validatedData = validatedData;
             next();
         } catch (error) {
@@ -221,27 +284,6 @@ class ValidationMiddleware {
         }
     }
     
-    async validateAddMember(req, res, next) {
-        try {
-            const schema = z.object({
-                email: z.string().email('Invalid email format')
-            });
-            
-            const validatedData = schema.parse(req.body);
-            req.validatedData = validatedData;
-            next();
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                return res.status(400).json({
-                    error: 'Validation failed',
-                    details: error.errors.map(e => e.message)
-                });
-            }
-            next(error);
-        }
-    }
-
-
     async validateSettlementCreation(req, res, next) {
         try {
             const validatedData = ValidationSchemas.settlementSchema.parse(req.body);
