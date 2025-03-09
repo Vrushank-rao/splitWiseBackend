@@ -37,6 +37,36 @@
 			"response": []
 		},
 		{
+			"name": "Register Copy",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"Harsh\",\r\n    \"email\":\"Harsh@mail.com\",\r\n    \"password\":\"Harsh@123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/users/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"users",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Login",
 			"request": {
 				"method": "POST",
@@ -67,6 +97,36 @@
 			"response": []
 		},
 		{
+			"name": "Login Copy",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\":\"Harsh@mail.com\",\r\n    \"password\":\"Harsh@123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/users/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"users",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Profile",
 			"request": {
 				"auth": {
@@ -74,7 +134,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyNzU0MjJiMi0yMjRmLTRkZWYtOWMzZC0wYjg4MGNjMWU0ZjUiLCJlbWFpbCI6InZydXNoYW5rQG1haWwuY29tIiwiaWF0IjoxNzM4NDA4MjIxLCJleHAiOjE3Mzg0OTQ2MjF9.jHAsiMpffc30Rnnn9pcZW8LZreyIkmjTz9-1zlhaW9k",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjN2Y1Mjc1NC1kNjUyLTQwM2MtOTFjOS04ZTBjMjBhYTJhZjUiLCJlbWFpbCI6InZydXNoYW5rQG1haWwuY29tIiwiaWF0IjoxNzQxNTE1NjE1LCJleHAiOjE3NDE2MDIwMTV9.aULB7Bl96JQAwXCJc9b72sA-DaWBtjkARrlwwsZlpiM",
 							"type": "string"
 						}
 					]
@@ -92,6 +152,77 @@
 						"api",
 						"users",
 						"profile"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Profile Copy",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxYWY5NjUyYi01Yzk4LTQ2YjQtYWI4Yi00Yjk3MGQ3MTE4ZjUiLCJlbWFpbCI6IkhhcnNoQG1haWwuY29tIiwiaWF0IjoxNzQxNTE0MTEzLCJleHAiOjE3NDE2MDA1MTN9.8IrEztqQHyCf-HwaRL32H7QXMDqiWITOkTS-P5CleJQ",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/api/users/profile",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"users",
+						"profile"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjN2Y1Mjc1NC1kNjUyLTQwM2MtOTFjOS04ZTBjMjBhYTJhZjUiLCJlbWFpbCI6InZydXNoYW5rQG1haWwuY29tIiwiaWF0IjoxNzQxNTE1NjE1LCJleHAiOjE3NDE2MDIwMTV9.aULB7Bl96JQAwXCJc9b72sA-DaWBtjkARrlwwsZlpiM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"Dinner outing\",\r\n    \"description\":\"Dinneer at Rajendr Dhaba\",\r\n    \"members\":[\"Harsh@mail.com\"]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/groups/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"groups",
+						""
 					]
 				}
 			},
