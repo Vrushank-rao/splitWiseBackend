@@ -67,6 +67,36 @@
 			"response": []
 		},
 		{
+			"name": "Register Copy 2",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"Harsh\",\r\n    \"email\":\"Harsh@mail.com\",\r\n    \"password\":\"Harsh@123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/users/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"users",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Login",
 			"request": {
 				"method": "POST",
@@ -223,6 +253,47 @@
 						"api",
 						"groups",
 						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "add member to existing group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNTcyOGFlMC1mNTM1LTQ0NjYtYWY1YS00MmEzYzNlNTBhNGUiLCJlbWFpbCI6InZydXNoYW5rQG1haWwuY29tIiwiaWF0IjoxNzQyMjIzMTYyLCJleHAiOjE3NDIzMDk1NjJ9.xSsPF3u0EcBbPqJEWOFB9BUJ2EPBAYs6UgDIZ9iF8Zw",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"Dinner outing\",\r\n    \"members\":[\"kritat@gmail.com\"]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/groups/f4d8d2be-c9fd-461c-81ad-633114cc283f/members",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"groups",
+						"f4d8d2be-c9fd-461c-81ad-633114cc283f",
+						"members"
 					]
 				}
 			},
