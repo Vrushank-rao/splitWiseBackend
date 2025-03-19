@@ -8,72 +8,89 @@ class GroupService {
         this.prisma = PrismaClient;
     }
 
-    async createGroup(name, userId) {
+    async createGroup(name, userId, memberIds = []) {
         try {
-            const group = await this.prisma.$transaction(async (tx) => {
-                const newGroup = await tx.group.create({
-                    data: { name }
-                });
-
-                await tx.userGroup.create({
-                    data: {
-                        userId,
-                        groupId: newGroup.id
-                    }
-                });
-
-                return newGroup;
+          const group = await this.prisma.$transaction(async (tx) => {
+            // 1. Create the group
+            const newGroup = await tx.group.create({
+              data: { name }
             });
-
-            return group;
+      
+            // 2. Add creator as a member
+            await tx.userGroup.create({
+              data: {
+                userId,
+                groupId: newGroup.id
+              }
+            });
+      
+            // 3. Add other members if provided
+            if (memberIds.length > 0) {
+              const filteredMemberIds = memberIds.filter(id => id !== userId);
+              
+              if (filteredMemberIds.length > 0) {
+                await tx.userGroup.createMany({
+                  data: filteredMemberIds.map(memberId => ({
+                    userId: memberId,
+                    groupId: newGroup.id
+                  })),
+                  skipDuplicates: true
+                });
+              }
+            }
+      
+            return newGroup;
+          });
+      
+          return group;
         } catch (error) {
-            throw error;
+          throw error;
         }
-    }
+      }
 
-    async addMemberToGroup(groupId, email, requesterId) {
+      async addMemberToGroup(groupId, userId, requesterId) {
         try {
             const requesterMembership = await this.prisma.userGroup.findUnique({
                 where: {
                     userId_groupId: {
                         userId: requesterId,
-                        groupId
+                        groupId: groupId
                     }
                 }
             });
-
+            
             if (!requesterMembership) {
                 throw new Error('Not authorized to add members to this group');
             }
-
+            
             const user = await this.prisma.user.findUnique({
-                where: { email }
+                where: { id: userId }
             });
-
+            
             if (!user) {
-                throw new Error('User not found with this email');
+                throw new Error('User not found');
             }
-
+            
             const existingMembership = await this.prisma.userGroup.findUnique({
                 where: {
                     userId_groupId: {
-                        userId: user.id,
-                        groupId
+                        userId: userId,
+                        groupId: groupId
                     }
                 }
             });
-
+            
             if (existingMembership) {
                 throw new Error('User is already a member of this group');
             }
-
+            
             await this.prisma.userGroup.create({
                 data: {
-                    userId: user.id,
-                    groupId
+                    userId: userId,
+                    groupId: groupId
                 }
             });
-
+            
             return { message: 'Member added successfully' };
         } catch (error) {
             throw error;

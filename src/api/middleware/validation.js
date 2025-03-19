@@ -246,29 +246,41 @@ class ValidationMiddleware {
 
     async validateAddMember(req, res, next) {
         try {
-            // Define the schema for adding a member - accepts either an email or a userId
+            // Define the schema for adding members
             const addMemberSchema = z.object({
-                email: z.string().email('Invalid email format').optional(),
-                userId: z.string().uuid('Invalid user ID format').optional()
-            }).refine(data => data.email || data.userId, {
-                message: 'Either email or userId must be provided'
+                members: z.array(
+                    z.string().email('Invalid email format')
+                ).min(1, 'At least one email must be provided')
             });
             
+            // Validate the request body
             const validatedData = addMemberSchema.parse(req.body);
             
-            // If email is provided instead of userId, convert it
-            if (validatedData.email && !validatedData.userId) {
-                const { foundUsers, notFoundEmails } = await getUUIDsFromEmails([validatedData.email]);
-                
-                if (notFoundEmails.length > 0) {
-                    return res.status(404).json({
-                        error: 'User not found',
-                        message: `No user found with email: ${validatedData.email}`
-                    });
-                }
-                
-                // Add the userId to the validated data
-                validatedData.userId = foundUsers[0].id;
+            // Get the groupId from the URL parameters
+            const { groupId } = req.params;
+            
+            // Validate that groupId is in the correct format
+            if (!groupId || typeof groupId !== 'string') {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    message: 'Invalid group ID'
+                });
+            }
+            
+            // Convert emails to UUIDs
+            const { foundUsers, notFoundEmails } = await getUUIDsFromEmails(validatedData.members);
+            
+            // Add the results to the validated data
+            validatedData.userIds = foundUsers.map(user => user.id);
+            validatedData.notFoundEmails = notFoundEmails;
+            validatedData.groupId = groupId; // Store the groupId from params
+            
+            // If all emails were not found, return an error
+            if (validatedData.userIds.length === 0) {
+                return res.status(404).json({
+                    error: 'User not found',
+                    message: `No users found with the provided emails`
+                });
             }
             
             req.validatedData = validatedData;

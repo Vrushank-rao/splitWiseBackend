@@ -29,6 +29,7 @@ export async function getUUIDsFromEmails(emails) {
 
     // Get list of emails that weren't found
     const foundEmails = users.map(user => user.email);
+    console.log("The emails that are found are: ",foundEmails);
     const notFoundEmails = emails.filter(email => !foundEmails.includes(email));
 
     return {
