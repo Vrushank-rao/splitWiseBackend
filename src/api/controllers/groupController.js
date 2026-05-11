@@ -59,12 +59,37 @@ class GroupController {
     }
     async addExpense(req, res, next) {
         try {
-            // The expense data has already been validated by the middleware
             const expenseData = req.validatedExpense;
             const userId = req.user.id;
-            
             const expense = await groupService.addExpenseToGroup(expenseData, userId);
             res.status(201).json(expense);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getUserGroups(req, res, next) {
+        try {
+            const groups = await groupService.getUserGroups(req.user.id);
+            res.status(200).json(groups);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getGroupDetails(req, res, next) {
+        try {
+            const group = await groupService.getGroupDetails(req.params.groupId, req.user.id);
+            res.status(200).json(group);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getGroupExpenses(req, res, next) {
+        try {
+            const expenses = await groupService.getGroupExpenses(req.params.groupId, req.user.id);
+            res.status(200).json(expenses);
         } catch (error) {
             next(error);
         }

@@ -45,11 +45,11 @@ class ValidationSchemas {
             .positive('Amount must be positive')
             .max(1000000, 'Amount seems unusually high')
             .transform(val => Number(val.toFixed(2))),
-        splitType: z.enum(['EQUAL', 'EXACT', 'PERCENTAGE', 'SHARES']),
-        groupId: z.string().uuid().optional(),
+        splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]),
+        // groupId: z.string().uuid().optional(),
         participants: z.array(
             z.object({
-                userId: z.string().uuid(),
+                userId: z.string(),
                 amount: z.number().positive().optional(),
                 percentage: z.number().min(0).max(100).optional(),
                 shares: z.number().positive().optional()
@@ -57,7 +57,7 @@ class ValidationSchemas {
         ).min(1, 'At least one participant is required')
     }).refine(data => {
         const { splitType, participants } = data;
-        switch(splitType) {
+        switch (splitType) {
             case 'EXACT':
                 return participants.every(p => typeof p.amount === 'number');
             case 'PERCENTAGE':
@@ -69,6 +69,12 @@ class ValidationSchemas {
         }
     }, {
         message: "Participant amounts must match the split type"
+    });
+
+    static settlementSchema = z.object({
+        toUserId: z.string().uuid('Invalid user ID'),
+        amount: z.number().positive('Amount must be positive').max(1000000, 'Amount seems unusually high'),
+        notes: z.string().max(500).optional()
     });
 }
 
@@ -115,12 +121,10 @@ class SplitValidator {
         }
 
         if (groupId) {
-            const groupMembers = await prisma.groupMember.findMany({
-                where: { 
-                    AND: [
-                        { groupId },
-                        { userId: { in: participantIds } }
-                    ]
+            const groupMembers = await prisma.userGroup.findMany({
+                where: {
+                    groupId,
+                    userId: { in: participantIds }
                 }
             });
 
@@ -167,18 +171,42 @@ class ValidationMiddleware {
     async validateExpenseCreation(req, res, next) {
         try {
             const validatedData = ValidationSchemas.expenseSchema.parse(req.body);
+            const { groupId } = req.params;
+
+            // Convert participant emails to UUIDs if needed
+            const hasEmails = validatedData.participants.some(p =>
+                typeof p.userId === 'string' && p.userId.includes('@')
+            );
+            if (hasEmails) {
+                const emails = validatedData.participants.map(p => p.userId);
+                const { foundUsers } = await getUUIDsFromEmails(emails);
+                const emailToId = new Map(foundUsers.map(u => [u.email, u.id]));
+                validatedData.participants = validatedData.participants.map(p => ({
+                    ...p,
+                    userId: emailToId.get(p.userId) || p.userId
+                }));
+            }
+
             await this.splitValidator.validateParticipantSplits(
                 validatedData.splitType,
                 validatedData.participants,
                 validatedData.totalAmount,
-                validatedData.groupId
+                groupId
             );
-            req.validatedExpense = validatedData;
+
+            // Remap schema fields to what groupService.addExpenseToGroup expects
+            req.validatedExpense = {
+                description: validatedData.description,
+                amount: validatedData.totalAmount,
+                splitType: validatedData.splitType,
+                splits: validatedData.participants,
+                groupId
+            };
             next();
         } catch (error) {
             res.status(400).json({
                 error: 'Validation failed',
-                details: error instanceof z.ZodError 
+                details: error instanceof z.ZodError
                     ? error.errors.map(e => e.message)
                     : [error.message]
             });
@@ -299,15 +327,14 @@ class ValidationMiddleware {
     async validateSettlementCreation(req, res, next) {
         try {
             const validatedData = ValidationSchemas.settlementSchema.parse(req.body);
-            
-            // Ensure user isn't trying to settle with themselves
+
             if (validatedData.toUserId === req.user.id) {
                 return res.status(400).json({
                     error: 'Validation failed',
                     details: ['Cannot create settlement with yourself']
                 });
             }
-    
+
             req.validatedData = validatedData;
             next();
         } catch (error) {

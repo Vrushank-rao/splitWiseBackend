@@ -2,7 +2,12 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-
+const SplitType = Object.freeze({
+    EQUAL: 'EQUAL',
+    EXACT: 'EXACT',
+    PERCENTAGE: 'PERCENTAGE',
+    SHARES: 'SHARES'
+})
 class GroupService {
     constructor(PrismaClient) {
         this.prisma = PrismaClient;
@@ -117,8 +122,7 @@ class GroupService {
             const splits = await this.calculateSplits(
                 expenseData.amount,
                 expenseData.splitType,
-                expenseData.splits,
-                expenseData.groupId
+                expenseData.splits
             );
 
             // Create the expense and its splits in a transaction
@@ -158,12 +162,10 @@ class GroupService {
         }
     }
 
-    async calculateSplits(totalAmount, splitType, splits, groupId) {
-        // Verify all users in splits are group members
-        await this.verifyGroupMembers(splits.map(s => s.userId), groupId);
+    async calculateSplits(totalAmount, splitType, splits) {
 
         switch (splitType) {
-            case 'EQUAL': {
+            case SplitType.EQUAL: {
                 // For equal splits, divide total amount by number of participants
                 const splitAmount = totalAmount / splits.length;
                 return splits.map(split => ({
@@ -172,7 +174,7 @@ class GroupService {
                 }));
             }
 
-            case 'EXACT': {
+            case SplitType.EXACT: {
                 // For exact splits, verify total matches expense amount
                 const totalSplit = splits.reduce((sum, split) => sum + split.amount, 0);
                 if (Math.abs(totalSplit - totalAmount) > 0.01) {
@@ -181,7 +183,7 @@ class GroupService {
                 return splits;
             }
 
-            case 'PERCENTAGE': {
+            case SplitType.PERCENTAGE: {
                 // For percentage splits, verify percentages total 100
                 const totalPercentage = splits.reduce((sum, split) => sum + split.percentage, 0);
                 if (Math.abs(totalPercentage - 100) > 0.01) {
@@ -195,7 +197,7 @@ class GroupService {
                 }));
             }
 
-            case 'SHARES': {
+            case SplitType.SHARES: {
                 // For share splits, calculate based on proportion of total shares
                 const totalShares = splits.reduce((sum, split) => sum + split.shares, 0);
                 return splits.map(split => ({
@@ -206,7 +208,7 @@ class GroupService {
             }
 
             default:
-                throw new Error('Invalid split type');
+                throw new Error('Invalid split type the split is '+splitType);
         }
     }
 
@@ -223,6 +225,61 @@ class GroupService {
         if (groupMembers.length !== userIds.length) {
             throw new Error('All users must be members of the group');
         }
+    }
+
+    async getUserGroups(userId) {
+        const userGroups = await this.prisma.userGroup.findMany({
+            where: { userId },
+            include: {
+                group: {
+                    include: {
+                        _count: { select: { userGroups: true, expenses: true } }
+                    }
+                }
+            }
+        });
+        return userGroups.map(ug => ug.group);
+    }
+
+    async getGroupDetails(groupId, userId) {
+        const membership = await this.prisma.userGroup.findUnique({
+            where: { userId_groupId: { userId, groupId } }
+        });
+        if (!membership) throw new Error('User is not a member of this group');
+
+        const group = await this.prisma.group.findUnique({
+            where: { id: groupId },
+            include: {
+                userGroups: {
+                    include: {
+                        user: { select: { id: true, name: true, email: true } }
+                    }
+                }
+            }
+        });
+
+        if (!group) throw new Error('Group not found');
+        return group;
+    }
+
+    async getGroupExpenses(groupId, userId) {
+        const membership = await this.prisma.userGroup.findUnique({
+            where: { userId_groupId: { userId, groupId } }
+        });
+        if (!membership) throw new Error('User is not a member of this group');
+
+        return this.prisma.expense.findMany({
+            where: { groupId },
+            include: {
+                paidBy: { select: { id: true, name: true, email: true } },
+                splits: {
+                    include: {
+                        user: { select: { id: true, name: true, email: true } }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
     }
 }
 

@@ -108,52 +108,55 @@ class UserService {
 
     async getUserBalances(userId) {
         try {
-            // Get all expenses where user is involved
-            const expenseSplits = await this.prisma.expenseSplit.findMany({
-                where: {
-                    userId
-                },
+            // Splits where user owes the payer
+            const userSplits = await this.prisma.expenseSplit.findMany({
+                where: { userId, isSettled: false },
+                include: { expense: { select: { paidById: true } } }
+            });
+
+            // Expenses paid by user — others owe user
+            const paidExpenses = await this.prisma.expense.findMany({
+                where: { paidById: userId },
                 include: {
-                    expense: {
-                        include: {
-                            paidBy: true
-                        }
-                    }
+                    splits: { where: { userId: { not: userId }, isSettled: false } }
                 }
             });
 
-            // Get all settlements involving the user
+            // Settlements between users
             const settlements = await this.prisma.settlement.findMany({
                 where: {
-                    OR: [
-                        { payerId: userId },
-                        { receiverId: userId }
-                    ]
+                    OR: [{ fromUserId: userId }, { toUserId: userId }]
                 }
             });
 
-            // Calculate balances...
             const balances = new Map();
-            
-            // Process expenses
-            expenseSplits.forEach(split => {
-                const expense = split.expense;
-                const otherUserId = expense.paidById === userId ? split.userId : expense.paidById;
-                
-                if (expense.paidById === userId) {
-                    balances.set(otherUserId, (balances.get(otherUserId) || 0) + split.amount);
-                } else {
-                    balances.set(otherUserId, (balances.get(otherUserId) || 0) - split.amount);
+
+            for (const split of userSplits) {
+                const payerId = split.expense.paidById;
+                if (payerId !== userId) {
+                    balances.set(payerId, (balances.get(payerId) || 0) - Number(split.amount));
                 }
-            });
+            }
 
-            // Convert Map to array
-            const balanceArray = Array.from(balances.entries()).map(([userId, amount]) => ({
-                userId,
-                amount
-            }));
+            for (const expense of paidExpenses) {
+                for (const split of expense.splits) {
+                    balances.set(split.userId, (balances.get(split.userId) || 0) + Number(split.amount));
+                }
+            }
 
-            return balanceArray;
+            for (const settlement of settlements) {
+                if (settlement.fromUserId === userId) {
+                    // User paid someone — reduces what user owes them
+                    balances.set(settlement.toUserId, (balances.get(settlement.toUserId) || 0) + Number(settlement.amount));
+                } else {
+                    // Someone paid user — reduces what they owe user
+                    balances.set(settlement.fromUserId, (balances.get(settlement.fromUserId) || 0) - Number(settlement.amount));
+                }
+            }
+
+            return Array.from(balances.entries())
+                .filter(([, amount]) => Math.abs(amount) > 0.01)
+                .map(([otherId, amount]) => ({ userId: otherId, amount }));
         } catch (error) {
             throw error;
         }

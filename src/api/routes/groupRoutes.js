@@ -6,7 +6,10 @@ import validationMiddleware from '../middleware/validation.js';
 
 const router = express.Router();
 
-router.post('/',  auth, validationMiddleware.validateGroupCreation, groupController.createGroup);
-router.post('/:groupId/members',  auth,validationMiddleware.validateAddMember, groupController.addMember);
-router.post('/:groupId/expenses', auth, validationMiddleware.validateExpenseCreation, groupController.addExpense);
+router.post('/', auth, validationMiddleware.validateGroupCreation.bind(validationMiddleware), groupController.createGroup);
+router.get('/', auth, groupController.getUserGroups);
+router.get('/:groupId', auth, groupController.getGroupDetails);
+router.post('/:groupId/members', auth, validationMiddleware.validateAddMember.bind(validationMiddleware), groupController.addMember);
+router.post('/:groupId/expenses', auth, validationMiddleware.validateExpenseCreation.bind(validationMiddleware), groupController.addExpense);
+router.get('/:groupId/expenses', auth, groupController.getGroupExpenses);
 export default router;
